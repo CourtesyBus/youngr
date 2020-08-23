@@ -1,0 +1,23 @@
+---
+title: "Create tidy_tuesday notebook"
+output: rmarkdown::github_document
+---
+
+```{r}
+# load package
+library(tidytuesdayR) # install.packages("tidytuesdayR")
+
+# create template
+tidytuesdayR::use_tidytemplate(
+  name = 
+    paste0(
+      "02_code/tidy_tuesdays/", 
+      gsub("-", "", Sys.Date()),
+      "_",
+      "euro_energy", # name of file
+      ".Rmd"
+    ),
+  refdate = "2020-08-04" # date of file
+)
+```
+

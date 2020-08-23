@@ -1,0 +1,200 @@
+---
+title: "TV golden age"
+date: 2020-08-08
+output: html_output
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+
+theme_set(theme_light())
+
+```
+
+# Load the weekly Data
+
+Download the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tidytuesdayR::tt_load("2019-01-08")
+
+```
+
+```{r}
+tt
+```
+
+```{r}
+tt %>% 
+  map(glimpse)
+```
+
+```{r}
+tv_ratings <- tt$IMDb_Economist_tv_ratings
+
+# print
+tv_ratings
+```
+
+
+```{r}
+tv_ratings_tidy <- tv_ratings %>% 
+  mutate(
+    across(
+      .cols = genres,
+      .fns = ~ str_split(string = ..1, pattern = ",")
+    )
+  )
+
+# print
+tv_ratings_tidy
+```
+
+
+which shows have had the max share?
+```{r}
+tv_ratings_tidy %>% 
+  group_by(title) %>% 
+  summarise(max_share = max(share)) %>% 
+  ungroup() %>% 
+  
+  slice_max(order_by = max_share, n = 20) %>% 
+  
+  mutate(
+    across(
+      .cols = title,
+      .fns = ~ fct_reorder(.f = ..1, .x = max_share)
+    )
+  ) %>% 
+  
+  ggplot(.) +
+  aes(x = max_share, y = title) +
+  geom_col() +
+  scale_x_continuous(
+    expand = expansion(mult = c(0, 0.05))
+  )
+```
+
+\
+let's look at the change in share over time for these shows.
+```{r}
+tv_ratings_tidy %>% 
+  group_by(title) %>% 
+  summarise(max_share = max(share)) %>% 
+  ungroup() %>% 
+  
+  slice_max(order_by = max_share, n = 20) %>% 
+  inner_join(
+    y = tv_ratings_tidy,
+    by = c("title")
+  ) %>% 
+  
+  add_count(title, name = "n_seasons") %>% 
+  filter(n_seasons > 1) %>% 
+  
+  # filter(title == "The X-Files") %>% 
+  
+  ggplot(.) +
+  aes(x = date, y = av_rating, color = title) +
+  geom_line(
+    show.legend = FALSE
+  ) +
+  facet_wrap(
+    facets = vars(title),
+    scales = "free_x"
+  )
+```
+
+
+what genres have the highest median rating and share?
+```{r}
+tv_ratings_tidy %>% 
+  unnest(cols = genres) %>% 
+  
+  mutate(
+    across(
+      .cols = genres,
+      .fns = ~ fct_reorder(.f = ..1, .x = av_rating)
+    )
+  ) %>% 
+  
+  ggplot(.) +
+  aes(x = av_rating, y = genres) +
+  geom_boxplot()
+  
+```
+
+
+
+
+scatterplot of share and rating
+```{r}
+tv_ratings_tidy %>% 
+  ggplot(.) +
+  aes(x = av_rating, y = share) +
+  geom_point() +
+  scale_x_continuous(
+    limits = c(0, 10),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0, 0.05))
+  )
+```
+
+
+
+
+
+what are the best and worst reviewed programs, based on median score, at least 5 seasons?
+```{r}
+tv_ratings_tidy %>% 
+  
+  add_count(title, name = "n_seasons") %>% 
+  filter(n_seasons >= 5) %>% 
+  
+  group_by(title) %>% 
+  summarise(avg_season_rating = mean(av_rating)) %>% 
+  ungroup() %>% 
+  
+  slice_max(order_by = avg_season_rating, n = 20) %>% 
+  
+  inner_join(
+    y = tv_ratings_tidy,
+    by = c("title")
+  ) %>% 
+  
+  mutate(
+    across(
+      .cols = title,
+      .fns = ~ fct_reorder(.f = ..1, .x = av_rating)
+    )
+  ) %>% 
+  
+  ggplot(.) +
+  aes(x = av_rating, y = title) +
+  geom_boxplot()
+```
+
+
+```{r}
+tv_ratings_tidy %>% 
+  filter(title == "Hannibal")
+```
+
+
+
+lollipop chart? dumbbel chart?

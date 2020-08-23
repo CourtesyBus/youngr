@@ -1,0 +1,70 @@
+---
+title: "Riddler - Toy Ring Stacker"
+output: html_notebook
+---
+
+[Can you make 24?](https://fivethirtyeight.com/features/can-you-make-24/) 
+
+Mira has a toy with five rings of different diameters and a tapered column. Each ring has a “correct” position on the column, from the largest ring that fits snugly at the bottom to the smallest ring that fits snugly at the top.
+
+Each ring she places will slide down to its correct position, if possible. Otherwise, it will rest on what was previously the topmost ring.
+
+For example, if Mira stacks the smallest ring first, then she cannot stack any more rings on top. But if she stacks the second-smallest ring first, then she can stack any one of the remaining four rings above it, after which she cannot stack any more rings.
+
+
+load packages
+```{r}
+library(tidyverse)
+```
+
+test loop
+```{r}
+N <- 5
+set.seed(123)
+
+# get all combinations later
+# let's work out the structure if we have a sample
+df <- tibble(
+  x = 1:10
+) %>% 
+  mutate(
+    y = lst(1:N),
+    z = map(.x = x, .f = ~ sample(N))
+  ) %>% 
+  unnest(cols = c(y, z))
+
+
+# print
+df
+```
+
+
+
+```{r}
+df %>% 
+  group_by(x) %>% 
+  mutate(
+    cuml_z = cummax(z),
+    cuml_z_lag = lag(cuml_z),
+    cuml_z_com = pmap_dbl(
+      .l = list(cuml_z, cuml_z_lag),
+      .f = ~ (..1 - ..2 - 1) %>% 
+        coalesce(..1) %>% 
+        max(1)
+    ),
+    cuml_z_sum = cumsum(cuml_z_com)
+  )
+
+# this doesn't work.
+
+```
+
+try again
+```{r}
+df %>% 
+  group_by(x) %>% 
+  mutate(
+    k1 = if_else(z < lag(z), lag(z) + 1L, z) %>% coalesce(z)
+  )
+```
+

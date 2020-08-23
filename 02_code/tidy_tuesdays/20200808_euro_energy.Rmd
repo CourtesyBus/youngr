@@ -1,0 +1,185 @@
+---
+title: "European energy"
+date: 2020-08-08
+output: html_output
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+
+theme_set(theme_light())
+
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2020-08-04")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+# Glimpse Data
+
+Take an initial look at the format of the data available.
+
+```{r Glimpse}
+
+tt %>% 
+  map(glimpse)
+
+```
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+energy_types_tidy <- tt$energy_types %>% 
+  pivot_longer(
+    cols = `2016`:`2018`,
+    names_to = "year",
+    values_to = "energy_gwh"
+  )
+
+
+# print
+energy_types_tidy %>% 
+  count(type)
+
+```
+
+
+# Visualise
+
+Let's first take a look at a barplot representing energy rates and proportions over time
+```{r}
+energy_types_tidy %>% 
+  count(type, year, wt = energy_gwh, name = "tot_energy_gwh") %>% 
+  mutate(
+    across(
+      .cols = type, 
+      .fns = ~ ..1 %>% 
+        fct_reorder(desc(tot_energy_gwh)) %>% 
+        fct_lump_n(n = 5, w = tot_energy_gwh)
+    )
+  ) %>% 
+  ggplot(.) +
+  aes(x = year, y = tot_energy_gwh, fill = type) +
+  geom_col() +
+  scale_y_continuous(
+    labels = scales::comma_format(scale = 1e-6, suffix = "m", accuracy = 0.1),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  labs(
+    x = NULL,
+    y = "Total energy usage (GWh)",
+    title = "Total energy usage by year and type of energy production",
+    subtitle = "Conventional thermal remains dominant"
+  )
+```
+
+
+
+\
+what about a bar chart with the highest energy producing nations?
+```{r}
+energy_types_tidy %>% 
+  filter(year == 2018) %>% 
+  count(country, type, wt = energy_gwh, name = "tot_energy_gwh") %>% 
+  mutate(
+    across(
+      .cols = country,
+      .fns = ~ ..1 %>% 
+        fct_reorder(.x = tot_energy_gwh, .fun = sum) %>% 
+        fct_lump_n(n = 20, w = tot_energy_gwh)
+    ),
+    across(
+      .cols = type,
+      .fns = ~ ..1 %>% 
+        fct_reorder(.x = tot_energy_gwh, .fun = sum)
+    )
+  ) %>% 
+  filter(country != "Other") %>% 
+  ggplot(.) +
+  aes(x = tot_energy_gwh, y = country, fill = type) +
+  geom_col() +
+  scale_x_continuous(
+    labels = scales::comma_format(scale = 1e-3, suffix = "k", accuracy = 0.1),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  labs(
+    x = "Total Energy GWH"
+  )
+  
+```
+
+
+
+
+```{r}
+energy_types_tidy %>% 
+  filter(year == 2018) %>% 
+  count(country_name, type, wt = energy_gwh) %>% 
+  filter(!is.na(country_name)) %>% 
+  mutate(
+    across(
+      .cols = country_name,
+      .fns = ~ ..1 %>% 
+        fct_lump_n(n = 20, w = n) %>% 
+        fct_reorder(.x = n, .fun = sum)
+    ),
+    across(
+      .cols = type,
+      .fns = ~ ..1 %>% 
+        fct_reorder(.x = n, .fun = sum)
+    )
+  ) %>% 
+  filter(country_name != "Other") %>% 
+  ggplot(.) +
+  aes(x = n, y = country_name, fill = type) +
+  geom_col(position = "fill") +
+  scale_x_continuous(
+    labels = scales::percent_format(),
+    expand = expansion(mult = c(0,0))
+  ) +
+  scale_fill_viridis_d(option = "inferno") +
+  labs(
+    x = "Percentage of energy usage by production type",
+    y = NULL,
+    title = "Proportion of energy use by country and type of energy production",
+    subtitle = "Norway or the hydro-way!!~"
+  ) +
+  theme(
+    legend.position = "bottom"
+  )
+```
+
